@@ -21,6 +21,21 @@ struct Opt {
     /// Path to the payer's keypair file.
     #[structopt(long)]
     payer_filepath: String,
+
+    #[structopt(subcommand)]
+    cmd: Command,
+}
+
+#[derive(Debug, StructOpt)]
+enum Command {
+    /// Depost SRM into the safe.
+    Deposit {},
+    /// Withdraw SRM from a vesting account.
+    Withdraw {},
+    /// Mint lSRM from a vesting account.
+    MintLockedSrm {},
+    /// Burn lSRM taken from a vesting account.
+    BurnLockedSrm {},
 }
 
 fn main() {
@@ -29,7 +44,9 @@ fn main() {
 
     let client = RpcClient::new(opt.cluster.url().to_string());
 
-    let deposit_instruction = serum_safe::instruction::deposit(opt.program_id, 1);
+    serum_safe_interface::hello_test_inside();
+
+    let deposit_instruction = serum_safe_interface::deposit(opt.program_id, 1);
     let instructions = vec![deposit_instruction];
 
     // todo: don't unwrap
