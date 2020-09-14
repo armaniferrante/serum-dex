@@ -1,0 +1,13 @@
+[package]
+name = "serum-safe-cli"
+version = "0.1.0"
+authors = ["armaniferrante <armaniferrante@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+serum_common = { path = "../../common" }
+serum_safe = { path = "../../safe/program", features = ["client"] }
+
+structopt = "0.3"
+solana-sdk = "1.3.4"
+solana-client = "1.3.4"

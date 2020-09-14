@@ -1,8 +1,8 @@
 #![allow(unused)]
 use anyhow::{format_err, Result};
 use clap::Clap;
-use rand::prelude::*;
 use log::{error, info, warn};
+use rand::prelude::*;
 use rand::rngs::OsRng;
 use safe_transmute::{
     guard::{PermissiveGuard, SingleManyGuard, SingleValueGuard},
@@ -19,6 +19,7 @@ use serum_dex::state::MarketState;
 use serum_dex::state::QueueHeader;
 use serum_dex::state::Request;
 use serum_dex::state::RequestQueueHeader;
+use serum_dex_common::Cluster;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -34,56 +35,15 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::mem::size_of;
 use std::num::NonZeroU64;
-use std::str::FromStr;
 use std::{thread, time};
 
-use std::sync::mpsc::{Sender, Receiver};
 use sloggers::file::FileLoggerBuilder;
 use sloggers::types::Severity;
 use sloggers::Build;
+use std::sync::mpsc::{Receiver, Sender};
 
 pub fn with_logging<F: FnOnce()>(to: &str, fnc: F) {
     fnc();
-}
-
-#[derive(Debug)]
-enum Cluster {
-    Testnet,
-    Mainnet,
-    VipMainnet,
-    Devnet,
-    Localnet,
-    Debug,
-}
-
-impl FromStr for Cluster {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Cluster> {
-        match s.to_lowercase().as_str() {
-            "t" | "testnet" => Ok(Cluster::Testnet),
-            "m" | "mainnet" => Ok(Cluster::Mainnet),
-            "v" | "vipmainnet" => Ok(Cluster::VipMainnet),
-            "d" | "devnet" => Ok(Cluster::Devnet),
-            "l" | "localnet" => Ok(Cluster::Localnet),
-            "g" | "debug" => Ok(Cluster::Debug),
-            _ => Err(anyhow::Error::msg(
-                "Cluster must be one of [testnet, mainnet, devnet]\n",
-            )),
-        }
-    }
-}
-
-impl Cluster {
-    fn url(&self) -> &'static str {
-        match self {
-            Cluster::Devnet => "https://devnet.solana.com",
-            Cluster::Testnet => "https://testnet.solana.com",
-            Cluster::Mainnet => "https://api.mainnet-beta.solana.com",
-            Cluster::VipMainnet => "https://vip-api.mainnet-beta.solana.com",
-            Cluster::Localnet => "http://127.0.0.1:8899",
-            Cluster::Debug => "http://34.90.18.145:8899",
-        }
-    }
 }
 
 fn read_keypair_file(s: &str) -> Result<Keypair> {
@@ -328,10 +288,9 @@ fn main() -> Result<()> {
             let client = opts.client();
             let _ = std::thread::spawn(move || accept_loop(port, send));
             let websockets = std::thread::spawn(move || websockets_loop(recv));
-            let _ = std::thread::spawn(move || read_queue_length_loop(client,
-            dex_program_id,
-            market,
-            queue_send));
+            let _ = std::thread::spawn(move || {
+                read_queue_length_loop(client, dex_program_id, market, queue_send)
+            });
             // Failures in the others will propagate to this loop via timeout
             websockets.join();
         }
@@ -1414,7 +1373,7 @@ fn websockets_loop(mut recv: Receiver<MonitorEvent>) {
                 for socket in &mut websockets {
                     socket.write_message(message.clone()).unwrap();
                 }
-            },
+            }
             MonitorEvent::NewConn(conn) => {
                 // Tungstenite errors don't implement debug so we can't unwrap?
                 // Generally we just die here anyways
@@ -1432,7 +1391,7 @@ fn read_queue_length_loop(
     client: RpcClient,
     program_id: Pubkey,
     market: Pubkey,
-    sender: std::sync::mpsc::Sender<MonitorEvent>
+    sender: std::sync::mpsc::Sender<MonitorEvent>,
 ) -> Result<()> {
     let market_keys = get_keys_for_market(&client, &program_id, &market)?;
     loop {

@@ -1,0 +1,10 @@
+[workspace]
+members = [
+        "common",
+        "safe/cli",
+]
+exclude = [
+        "dex",
+        "crank",
+        "safe/program",
+]
