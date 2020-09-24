@@ -1,7 +1,7 @@
 [package]
 name = "serum-safe-program"
 version = "0.1.0"
-description = "Serum Safe"
+description = "Serum Safe Solana program"
 repository = "https://github.com/project-serum/serum-dex"
 edition = "2018"
 
